@@ -4,6 +4,7 @@ defmodule Bamboo.SendGridAdapterTest do
   alias Bamboo.SendGridAdapter
 
   @config %{adapter: SendGridAdapter, api_key: "123_abc"}
+  @config_with_sandbox_mode %{adapter: SendGridAdapter, api_key: "123_abc", sandbox_mode: true}
   @config_with_bad_key %{adapter: SendGridAdapter, api_key: nil}
 
   defmodule FakeSendgrid do
@@ -75,6 +76,20 @@ defmodule Bamboo.SendGridAdapterTest do
     assert_receive {:fake_sendgrid, %{request_path: request_path}}
 
     assert request_path == "/mail/send"
+  end
+
+  test "deliver/2 defaults sandbox mode to false" do
+    new_email() |> SendGridAdapter.deliver(@config)
+
+    assert_receive {:fake_sendgrid, %{params: params}}
+    refute params["mail_settings"]["sandbox_mode"]["enable"]
+  end
+
+  test "deliver/2 allows sandbox mode enabling via config" do
+    new_email() |> SendGridAdapter.deliver(@config_with_sandbox_mode)
+
+    assert_receive {:fake_sendgrid, %{params: params}}
+    assert params["mail_settings"]["sandbox_mode"]["enable"]
   end
 
   test "deliver/2 sends from, html and text body, subject, headers and attachment" do
