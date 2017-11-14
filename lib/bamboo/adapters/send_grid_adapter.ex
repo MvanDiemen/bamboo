@@ -33,7 +33,7 @@ defmodule Bamboo.SendGridAdapter do
 
   def deliver(email, config) do
     api_key = get_key(config)
-    body = email |> to_sendgrid_body |> Poison.encode!
+    body = email |> to_sendgrid_body(config) |> Poison.encode!
     url = [base_uri(), @send_message_path]
 
     case :hackney.post(url, headers(api_key), body, [:with_body]) do
@@ -66,6 +66,13 @@ defmodule Bamboo.SendGridAdapter do
     end
   end
 
+  defp get_sandbox_mode(config) do
+    case Map.get(config, :sandbox_mode) do
+      nil -> false
+      key -> key
+    end
+  end
+
   defp raise_api_key_error(config) do
     raise ArgumentError, """
     There was no API key set for the SendGrid adapter.
@@ -83,7 +90,7 @@ defmodule Bamboo.SendGridAdapter do
     ]
   end
 
-  defp to_sendgrid_body(%Email{} = email) do
+  defp to_sendgrid_body(%Email{} = email, config = %{}) do
     %{}
     |> put_from(email)
     |> put_personalization(email)
@@ -92,6 +99,7 @@ defmodule Bamboo.SendGridAdapter do
     |> put_content(email)
     |> put_template_id(email)
     |> put_attachments(email)
+    |> put_mail_settings(config)
   end
 
   defp put_from(body, %Email{from: from}) do
@@ -108,6 +116,10 @@ defmodule Bamboo.SendGridAdapter do
     |> put_cc(email)
     |> put_bcc(email)
     |> put_template_substitutions(email)
+  end
+
+  defp put_mail_settings(body, config) do
+    Map.put(body, :mail_settings, %{sandbox_mode: %{enable: get_sandbox_mode(config)}})
   end
 
   defp put_to(body, %Email{to: to}) do
